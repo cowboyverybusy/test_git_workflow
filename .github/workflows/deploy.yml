@@ -16,8 +16,9 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
-        run: |
-          go build -o test_git_workflow_app main.go
+
+      - name: Build Application
+        run: go build -o test_git_workflow_app main.go
 
       - name: Deploy and run
         uses: appleboy/ssh-action@v1.0.0
