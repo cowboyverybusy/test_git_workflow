@@ -1,0 +1,43 @@
+name: Simple Go Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go and build
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+        run: |
+          go build -o test_git_workflow_app main.go
+
+      - name: Deploy and run
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # 停止之前的进程
+            pkill -f "test_git_workflow_app" || true
+            
+            # 上传新版本
+            sudo mkdir -p /home/deploy/apps
+            sudo mv test_git_workflow_app /home/deploy/apps/test_git_workflow_app
+            sudo chmod +x /home/deploy/apps/test_git_workflow_app
+            
+            # 以 nohup 方式启动，记录日志
+            cd /home/deploy/apps
+            nohup ./test_git_workflow_app > app.log 2>&1 &
+            echo "Process started with PID: $!"
+            
+            # 保存 PID 到文件
+            echo $! > app.pid
