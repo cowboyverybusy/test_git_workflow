@@ -40,17 +40,33 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             # 停止之前的进程
-            pkill -f test_git_workflow_app >/dev/null 2>&1 || true
-          
-            # 将文件从/tmp移动到目标位置
-            sudo mkdir -p /home/deploy/apps
+            # pkill -f test_git_workflow_app >/dev/null 2>&1 || true
+            # 停止旧进程（基于 PID 文件）
+            if [ -f app.pid ]; then
+              oldpid=$(cat app.pid)
+              if ps -p $oldpid > /dev/null; then
+                kill $oldpid || true
+                sleep 1
+              fi
+            fi
+
+            # 替换应用程序
             sudo mv /tmp/test_git_workflow_app /home/deploy/apps/
             sudo chmod +x /home/deploy/apps/test_git_workflow_app
-            
-            # 以 nohup 方式启动，记录日志
+            sudo chown deploy:deploy /home/deploy/apps/test_git_workflow_app
+
             cd /home/deploy/apps
+
+            # 启动新进程
             nohup ./test_git_workflow_app > app.log 2>&1 &
-            echo "Process started with PID: $!"
-            
-            # 保存 PID 到文件
-            echo $! > app.pid
+            newpid=$!
+            echo $newpid > app.pid
+            echo "Started new PID: $newpid"
+
+            # 检查是否启动成功
+            sleep 1
+            if ! ps -p $newpid > /dev/null; then
+              echo "❌ ERROR: Application failed to start!"
+              tail -n 50 app.log
+              exit 1
+            fi
