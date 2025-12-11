@@ -1,0 +1,85 @@
+name: Simple Go Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '选择部署环境'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: '要部署/回滚的版本 (commit SHA、分支名或Tag，如: a1b2c3d)'
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout specific version
+        uses: actions/checkout@v4
+        with:
+          # 🔄 回滚核心：根据输入的版本检出代码
+          ref: ${{ github.event.inputs.version || 'main' }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Build Application
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags="-s -w" -o test_git_workflow_app main.go
+          echo "构建版本: $(git rev-parse --short HEAD)"
+
+      - name: Upload via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "test_git_workflow_app"
+          target: "/tmp/"
+
+      - name: Deploy with backup
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # 1. 备份当前版本（回滚保障）
+            BACKUP_DIR="/home/deploy/backups"
+            sudo mkdir -p $BACKUP_DIR
+            if [ -f "/home/deploy/apps/test_git_workflow_app" ]; then
+              BACKUP_NAME="backup_$(date +%Y%m%d_%H%M%S)_$(md5sum /home/deploy/apps/test_git_workflow_app | cut -c1-6)"
+              sudo cp /home/deploy/apps/test_git_workflow_app "$BACKUP_DIR/$BACKUP_NAME"
+              echo "已备份当前版本: $BACKUP_DIR/$BACKUP_NAME"
+            fi
+
+            # 2. 停止旧进程（保留你的方式）
+            pids=$(ps -ef | grep "test_git_workflow_app" | grep -v grep | awk '{print $2}')
+            if [ -n "$pids" ]; then
+              echo "停止旧进程: $pids"
+              kill -9 $pids || true
+              sleep 1
+            fi
+
+            # 3. 部署新版本
+            sudo mkdir -p /home/deploy/apps
+            sudo mv /tmp/test_git_workflow_app /home/deploy/apps/
+            sudo chmod +x /home/deploy/apps/test_git_workflow_app
+
+            # 4. 启动
+            cd /home/deploy/apps
+            nohup ./test_git_workflow_app > app.log 2>&1 &
+            echo $! > app.pid
+            echo "启动成功 PID: $!"
+
+            # 5. 记录部署历史
+            echo "$(date '+%Y-%m-%d %H:%M:%S') | 版本:$(git rev-parse --short HEAD) | 环境:${{ github.event.inputs.environment }}" >> /home/deploy/deploy_history.log
