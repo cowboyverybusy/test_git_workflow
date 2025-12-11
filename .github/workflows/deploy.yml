@@ -39,34 +39,18 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # 停止之前的进程
-            # pkill -f test_git_workflow_app >/dev/null 2>&1 || true
-            # 停止旧进程（基于 PID 文件）
-            if [ -f app.pid ]; then
-              oldpid=$(cat app.pid)
-              if ps -p $oldpid > /dev/null; then
-                kill $oldpid || true
-                sleep 1
-              fi
+            pids=$(ps -ef | grep "test_git_workflow_app" | grep -v grep | awk '{print $2}')
+            if [ -n "$pids" ]; then
+              echo "Killing old app PIDs: $pids"
+              kill -9 $pids || true
+              sleep 1
             fi
-
-            # 替换应用程序
+            
+            sudo mkdir -p /home/deploy/apps
             sudo mv /tmp/test_git_workflow_app /home/deploy/apps/
             sudo chmod +x /home/deploy/apps/test_git_workflow_app
-            sudo chown deploy:deploy /home/deploy/apps/test_git_workflow_app
-
+            
             cd /home/deploy/apps
-
-            # 启动新进程
+            
             nohup ./test_git_workflow_app > app.log 2>&1 &
-            newpid=$!
-            echo $newpid > app.pid
-            echo "Started new PID: $newpid"
-
-            # 检查是否启动成功
-            sleep 1
-            if ! ps -p $newpid > /dev/null; then
-              echo "❌ ERROR: Application failed to start!"
-              tail -n 50 app.log
-              exit 1
-            fi
+            echo "Started with PID: $!"
