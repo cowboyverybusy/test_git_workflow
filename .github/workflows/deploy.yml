@@ -7,9 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    container:
-      # 在CentOS 7容器中构建，确保100%兼容
-      image: centos:7
+
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -20,7 +18,10 @@ jobs:
           go-version: '1.21'
 
       - name: Build Application
-        run: go build -o test_git_workflow_app main.go
+#        run: go build -o test_git_workflow_app main.go
+        run: |
+          # 关键参数：CGO_ENABLED=0 使用纯Go，-ldflags="-s -w" 减小体积
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags="-s -w" -o test_git_workflow_app main.go
 
       - name: Upload via SCP
         uses: appleboy/scp-action@v0.1.7
