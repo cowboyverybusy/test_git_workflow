@@ -40,7 +40,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             # 停止之前的进程
-            pkill -f “test_git_workflow_app”
+            pkill -f test_git_workflow_app
           
             # 将文件从/tmp移动到目标位置
             sudo mkdir -p /home/deploy/apps
