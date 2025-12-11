@@ -1,0 +1,68 @@
+name: Simple Go Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '选择部署环境'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: '部署版本 (如: v1.2.3)'
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go and build
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Build Application
+        #        run: go build -o test_git_workflow_app main.go
+        run: |
+          # 关键参数：CGO_ENABLED=0 使用纯Go，-ldflags="-s -w" 减小体积
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags="-s -w" -o test_git_workflow_app main.go
+
+      - name: Upload via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "test_git_workflow_app"
+          target: "/tmp/"
+
+      - name: Deploy and run
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            pids=$(ps -ef | grep "test_git_workflow_app" | grep -v grep | awk '{print $2}')
+            if [ -n "$pids" ]; then
+              echo "Killing old app PIDs: $pids"
+              kill -9 $pids || true
+              sleep 1
+            fi
+            
+            sudo mkdir -p /home/deploy/apps
+            sudo mv /tmp/test_git_workflow_app /home/deploy/apps/
+            sudo chmod +x /home/deploy/apps/test_git_workflow_app
+            
+            cd /home/deploy/apps
+            
+            nohup ./test_git_workflow_app > app.log 2>&1 &
+            echo "Started with PID: $!"

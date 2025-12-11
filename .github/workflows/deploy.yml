@@ -1,8 +1,20 @@
 name: Simple Go Deploy
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '选择部署环境'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: '部署版本 (如: v1.2.3)'
+        required: false
+        type: string
 
 jobs:
   deploy:
@@ -18,7 +30,7 @@ jobs:
           go-version: '1.21'
 
       - name: Build Application
-#        run: go build -o test_git_workflow_app main.go
+        #        run: go build -o test_git_workflow_app main.go
         run: |
           # 关键参数：CGO_ENABLED=0 使用纯Go，-ldflags="-s -w" 减小体积
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags="-s -w" -o test_git_workflow_app main.go
