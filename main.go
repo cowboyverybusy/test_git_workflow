@@ -8,7 +8,7 @@ import (
 
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("奥里给 ? Hello World cowboy very busy!"))
+		w.Write([]byte("kFC? Hello World cowboy very busy!"))
 	})
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
