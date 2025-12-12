@@ -29,7 +29,7 @@ jobs:
           # triggered a workflow, this defaults to the reference or SHA for that event.
           # Otherwise, uses the default branch.
           ref: ${{ github.event.inputs.version || 'main' }}
-#          fetch-depth: 0  # 获取完整历史，可以按commit SHA检出(这样指定可以按commit id 回滚才不会报错)
+          fetch-depth: 0  # 获取完整历史，可以按commit SHA检出(这样指定可以按commit id 回滚才不会报错)
 
       - name: Setup Go
         uses: actions/setup-go@v4
