@@ -22,11 +22,14 @@ jobs:
 
     steps:
       - name: Checkout specific version
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # 🔄 回滚核心：根据输入的版本检出代码
+          # The branch, tag or SHA to checkout. When checking out the repository that
+          # triggered a workflow, this defaults to the reference or SHA for that event.
+          # Otherwise, uses the default branch.
           ref: ${{ github.event.inputs.version || 'main' }}
-          fetch-depth: 0  # 获取完整历史，可以按commit SHA检出
+#          fetch-depth: 0  # 获取完整历史，可以按commit SHA检出(这样指定可以按commit id 回滚才不会报错)
 
       - name: Setup Go
         uses: actions/setup-go@v4
