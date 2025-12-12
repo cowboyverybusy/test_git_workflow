@@ -29,6 +29,7 @@ jobs:
           # triggered a workflow, this defaults to the reference or SHA for that event.
           # Otherwise, uses the default branch.
           ref: ${{ github.event.inputs.version || 'main' }}
+          fetch-depth: 0  # 获取完整历史，可以按commit SHA检出(这样指定可以按commit id 回滚才不会报错)
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -41,7 +42,6 @@ jobs:
           echo "构建版本: $(git rev-parse --short HEAD)"
           # 🔄 保存版本信息到文件，供后续步骤使用
           echo "GIT_VERSION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-          echo "DEPLOY_TIME=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
 
 
       - name: Upload via SCP
@@ -89,4 +89,4 @@ jobs:
             echo "启动成功 PID: $!"
             
             # 5. 记录部署历史（使用GitHub Actions传递的变量）
-            echo "${{ env.DEPLOY_TIME }} | 版本:${{ env.GIT_VERSION }} | 环境:${{ github.event.inputs.environment }}" | sudo tee -a /home/deploy/deploy_history.log
+            echo "$(date '+%Y-%m-%d %H:%M:%S') | 版本:${{ env.GIT_VERSION }} | 环境:${{ github.event.inputs.environment }}" | sudo tee -a /home/deploy/deploy_history.log
