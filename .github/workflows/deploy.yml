@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Checkout specific version
         uses: actions/checkout@v6
-        with: |
+        with:
           # 🔄 回滚核心：根据输入的版本检出代码
           # The branch, tag or SHA to checkout. When checking out the repository that
           # triggered a workflow, this defaults to the reference or SHA for that event.
