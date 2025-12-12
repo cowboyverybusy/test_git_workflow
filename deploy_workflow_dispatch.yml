@@ -20,6 +20,10 @@ jobs:
         run: |
           # 关键参数：CGO_ENABLED=0 使用纯Go，-ldflags="-s -w" 减小体积
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags="-s -w" -o test_git_workflow_app main.go
+           echo "构建版本: $(git rev-parse --short HEAD)"
+          # 🔄 保存版本信息到文件，供后续步骤使用
+          echo "GIT_VERSION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
 
       - name: Upload via SCP
         uses: appleboy/scp-action@v0.1.7
@@ -52,3 +56,6 @@ jobs:
             
             nohup ./test_git_workflow_app > app.log 2>&1 &
             echo "Started with PID: $!"
+            
+            # 记录部署历史（使用GitHub Actions传递的变量）
+            echo "$(date '+%Y-%m-%d %H:%M:%S') | 版本:${{ env.GIT_VERSION }}" | sudo tee -a /home/deploy/deploy_history.log
