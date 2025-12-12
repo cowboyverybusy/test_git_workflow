@@ -24,13 +24,8 @@ jobs:
       - name: Checkout specific version
         uses: actions/checkout@v6
         with:
-          # 🔄 回滚核心：根据输入的版本检出代码
-          # The branch, tag or SHA to checkout. When checking out the repository that
-          # triggered a workflow, this defaults to the reference or SHA for that event.
-          # Otherwise, uses the default branch.
-          # 这个会覆盖
           ref: ${{ github.event.inputs.version || 'main' }}
-          fetch-depth: 0  # 获取完整历史，可以按commit SHA检出(这样指定可以按commit id 回滚才不会报错)
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -41,6 +36,9 @@ jobs:
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags="-s -w" -o test_git_workflow_app main.go
           echo "构建版本: $(git rev-parse --short HEAD)"
+          # 🔄 保存版本信息到文件，供后续步骤使用
+          echo "GIT_VERSION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
 
       - name: Upload via SCP
         uses: appleboy/scp-action@v0.1.7
@@ -85,6 +83,6 @@ jobs:
             nohup ./test_git_workflow_app > app.log 2>&1 &
             echo $! > app.pid
             echo "启动成功 PID: $!"
-
-            # 5. 记录部署历史
-            echo "$(date '+%Y-%m-%d %H:%M:%S') | 版本:$(git rev-parse --short HEAD) | 环境:${{ github.event.inputs.environment }}" >> /home/deploy/deploy_history.log
+            
+            # 5. 记录部署历史（使用GitHub Actions传递的变量）
+            echo "$(date '+%Y-%m-%d %H:%M:%S') | 版本:${{ env.GIT_VERSION }} | 环境:${{ github.event.inputs.environment }}" | sudo tee -a /home/deploy/deploy_history.log
